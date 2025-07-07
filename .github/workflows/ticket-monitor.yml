@@ -46,8 +46,86 @@ jobs:
           echo "EOF" >> $GITHUB_OUTPUT
         fi
         
-    - name: Send email alert
+    - name: Create GitHub Issue Alert
       if: success() && steps.monitor.outputs.alert_needed == 'true'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const ticketCount = '${{ steps.monitor.outputs.ticket_count }}';
+          const message = `${{ steps.read_message.outputs.MESSAGE }}`;
+          const runUrl = `${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}`;
+          
+          const title = `🎫 Ticket Alert: ${ticketCount} target tickets found!`;
+          const body = `${message}
+          
+          ## 🚀 Quick Actions
+          - [🎫 Buy Tickets](https://singaporegp.sg/en/tickets/general-tickets/grandstands/)
+          - [📊 View Run Details](${runUrl})
+          - [⚙️ Monitor Settings](https://github.com/${{ github.repository }}/blob/main/MONITOR_SETUP.md)
+          
+          ## 📱 Mobile Notification
+          If you have the GitHub mobile app installed, you should receive a push notification for this issue.
+          
+          ---
+          **Monitoring Details:**
+          - 🕒 Generated at: ${new Date().toISOString()}
+          - 🔄 Workflow: ${{ github.workflow }}
+          - 📋 Run ID: ${{ github.run_id }}
+          - 🏷️ Repository: ${{ github.repository }}
+          
+          > This issue will be automatically updated if more target tickets are found.
+          > Close this issue when you no longer need alerts for the current tickets.`;
+          
+          // Check if there's already an open issue for current tickets
+          const issues = await github.rest.issues.listForRepo({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            state: 'open',
+            labels: 'ticket-alert'
+          });
+          
+          // If no open issue exists, create a new one
+          if (issues.data.length === 0) {
+            const newIssue = await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: title,
+              body: body,
+              labels: ['ticket-alert', 'automated', 'high-priority'],
+              assignees: ['${{ github.repository_owner }}']
+            });
+            
+            console.log(`Created new issue #${newIssue.data.number}`);
+          } else {
+            // Update existing issue with new alert
+            const existingIssue = issues.data[0];
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: existingIssue.number,
+              body: `## 🆕 New Alert - ${new Date().toISOString()}
+              
+              ${message}
+              
+              [🎫 Buy Now](https://singaporegp.sg/en/tickets/general-tickets/grandstands/) • [📊 Run Details](${runUrl})
+              
+              ---
+              Total alerts for this issue: ${existingIssue.comments + 1}`
+            });
+            
+            // Update issue title to reflect new count
+            await github.rest.issues.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: existingIssue.number,
+              title: title
+            });
+            
+            console.log(`Updated existing issue #${existingIssue.number}`);
+          }
+          
+    - name: Send Email Alert (Optional)
+      if: success() && steps.monitor.outputs.alert_needed == 'true' && vars.ENABLE_EMAIL == 'true'
       uses: dawidd6/action-send-mail@v3
       with:
         server_address: smtp.gmail.com
@@ -60,46 +138,15 @@ jobs:
         body: |
           ${{ steps.read_message.outputs.MESSAGE }}
           
+          🎫 Buy tickets: https://singaporegp.sg/en/tickets/general-tickets/grandstands/
+          📊 View details: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          
           ---
-          This alert was generated automatically at ${{ github.run_id }}
+          This alert was generated automatically.
           Repository: ${{ github.repository }}
           Workflow: ${{ github.workflow }}
         priority: high
-        
-    - name: Create Issue on Alert (Optional)
-      if: success() && steps.monitor.outputs.alert_needed == 'true'
-      uses: actions/github-script@v7
-      with:
-        script: |
-          const title = `🎫 Ticket Alert: ${context.payload.inputs?.ticket_count || '${{ steps.monitor.outputs.ticket_count }}'} target tickets found`;
-          const body = `${{ steps.read_message.outputs.MESSAGE }}\n\n---\nGenerated at: ${new Date().toISOString()}\nWorkflow Run: ${context.runId}`;
-          
-          // Check if there's already an open issue
-          const issues = await github.rest.issues.listForRepo({
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            state: 'open',
-            labels: 'ticket-alert'
-          });
-          
-          if (issues.data.length === 0) {
-            // Create new issue if none exists
-            await github.rest.issues.create({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              title: title,
-              body: body,
-              labels: ['ticket-alert', 'automated']
-            });
-          } else {
-            // Update existing issue
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: issues.data[0].number,
-              body: `**New Alert - ${new Date().toISOString()}**\n\n${body}`
-            });
-          }
+      continue-on-error: true
           
     - name: Log monitoring result
       if: always()

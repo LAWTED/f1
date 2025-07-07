@@ -2,18 +2,35 @@
 
 ## 🎯 监控条件
 
-这个系统会监控以下票务并发送邮件提醒：
+这个系统会监控以下票务并通过 GitHub Issues 通知你：
 
 1. **周日的 grandstand 票** (高优先级)
 2. **三日票价格 ≤ $1500** (高优先级)
 3. **周五 premier walkabout 票** (中优先级)
 4. **grandstand 票价格 ≤ $300** (中优先级)
 
-## 🔧 GitHub Secrets 配置
+## 📱 GitHub 通知设置（推荐）
 
-在你的 GitHub 仓库中设置以下 secrets (Settings → Secrets and variables → Actions):
+### 🆓 完全免费的通知方式
+- **GitHub Issues**: 自动创建 Issue 记录发现的票务
+- **手机推送**: 通过 GitHub 手机 App 接收即时通知
+- **无需配置**: 不需要设置任何 secrets 或密码
 
-### 必需的 Secrets
+### 📲 启用手机通知
+1. 下载 GitHub 手机 App (iOS/Android)
+2. 登录你的 GitHub 账户
+3. 在 App 设置中启用 Issues 通知
+4. 当发现目标票务时，会自动推送到手机
+
+## 🔧 邮件通知配置（可选）
+
+如果你想额外接收邮件提醒，可以配置以下设置：
+
+### 启用邮件功能
+1. 在 GitHub 仓库中设置变量: Settings → Secrets and variables → Actions → Variables
+2. 创建变量 `ENABLE_EMAIL` 并设置值为 `true`
+
+### 邮件 Secrets（仅在启用邮件时需要）
 
 1. **EMAIL_USERNAME**: 发送邮件的Gmail账户
    ```
@@ -32,9 +49,9 @@
    your-email@example.com
    ```
 
-## 📋 设置步骤
+## 📋 快速设置步骤
 
-### 1. 克隆到 GitHub
+### 1. 上传到 GitHub
 ```bash
 cd /path/to/your/repo
 git init
@@ -44,23 +61,22 @@ git remote add origin https://github.com/yourusername/singapore-gp-monitor.git
 git push -u origin main
 ```
 
-### 2. 配置 Gmail 应用密码
-1. 登录 Google Account
-2. 进入 Security → 2-Step Verification
-3. 在底部找到 "App passwords"
-4. 生成新的应用密码
-5. 将密码保存为 `EMAIL_PASSWORD` secret
-
-### 3. 设置 GitHub Secrets
-1. 进入 GitHub 仓库
-2. Settings → Secrets and variables → Actions
-3. 点击 "New repository secret"
-4. 添加上述三个 secrets
-
-### 4. 启用 Actions
+### 2. 启用 GitHub Actions
 1. 进入仓库的 Actions 页面
 2. 如果需要，启用 GitHub Actions
 3. 监控会自动每10分钟运行一次
+
+### 3. 设置手机通知（推荐）
+1. 下载并登录 GitHub 手机 App
+2. 进入 App 设置 → Notifications
+3. 确保 "Issues" 通知已开启
+4. 完成！当发现目标票务时会自动推送到手机
+
+### 4. 可选：启用邮件通知
+仅在你需要邮件通知时：
+1. 在仓库 Settings → Secrets and variables → Actions → Variables
+2. 创建变量 `ENABLE_EMAIL` = `true`
+3. 配置上述邮件相关的 secrets
 
 ## 🚀 手动测试
 
@@ -76,12 +92,13 @@ python monitor_tickets.py
 2. 选择 "Singapore GP Ticket Monitor" workflow
 3. 点击 "Run workflow"
 
-## 📧 邮件格式示例
+## 📱 通知示例
 
-当发现目标票务时，你会收到类似这样的邮件：
+### GitHub Issue 通知
+当发现目标票务时，会自动创建这样的 Issue：
 
 ```
-Subject: 🎫 Singapore GP Ticket Alert - 2 tickets found!
+Title: 🎫 Ticket Alert: 2 target tickets found!
 
 🎫 Singapore GP Ticket Alert!
 
@@ -103,9 +120,20 @@ Found the following target tickets:
    Priority: MEDIUM
    Status: AVAILABLE
 
-🔗 Buy tickets: https://singaporegp.sg/en/tickets/general-tickets/grandstands/
+## 🚀 Quick Actions
+- [🎫 Buy Tickets](https://singaporegp.sg/en/tickets/general-tickets/grandstands/)
+- [📊 View Run Details](https://github.com/user/repo/actions/runs/123)
+- [⚙️ Monitor Settings](https://github.com/user/repo/blob/main/MONITOR_SETUP.md)
 
-Total found: 2 target tickets
+## 📱 Mobile Notification
+If you have the GitHub mobile app installed, you should receive a push notification for this issue.
+```
+
+### 手机推送通知
+在 GitHub App 中会显示：
+```
+🎫 Ticket Alert: 2 target tickets found!
+singapore-gp-monitor • Issues
 ```
 
 ## 🔄 监控频率

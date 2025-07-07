@@ -118,11 +118,17 @@ python test_monitor.py
 # 2. 手动运行一次监控
 python monitor_tickets.py
 
-# 3. 设置 GitHub Action 自动监控
+# 3. 设置 GitHub Action 自动监控（推荐 GitHub Issues 通知）
 # 参见 MONITOR_SETUP.md 详细说明
 ```
 
-详细的监控设置请参考 [MONITOR_SETUP.md](MONITOR_SETUP.md)
+### 📱 通知方式
+- **🆓 GitHub Issues + 手机推送** (推荐，无需配置)
+- **📧 邮件通知** (可选，需要配置Gmail)
+
+详细设置请参考：
+- [MONITOR_SETUP.md](MONITOR_SETUP.md) - 完整监控设置
+- [GITHUB_NOTIFICATIONS.md](GITHUB_NOTIFICATIONS.md) - GitHub通知配置
 
 ---
 
