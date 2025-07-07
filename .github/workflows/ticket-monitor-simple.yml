@@ -9,6 +9,10 @@ on:
 env:
   PYTHONPATH: ${{ github.workspace }}
 
+permissions:
+  contents: read
+  issues: write
+
 jobs:
   monitor-tickets:
     runs-on: ubuntu-latest
