@@ -1,0 +1,117 @@
+name: Singapore GP Ticket Monitor
+
+on:
+  schedule:
+    # Run every 10 minutes
+    - cron: '*/10 * * * *'
+  workflow_dispatch: # Allow manual trigger
+  
+env:
+  PYTHONPATH: ${{ github.workspace }}
+
+jobs:
+  monitor-tickets:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+        cache: 'pip'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install requests beautifulsoup4
+        
+    - name: Run ticket monitor
+      id: monitor
+      run: |
+        cd ${{ github.workspace }}
+        python monitor_tickets.py
+      continue-on-error: true
+      
+    - name: Read alert message
+      id: read_message
+      if: success() && steps.monitor.outputs.alert_needed == 'true'
+      run: |
+        if [ -f alert_message.txt ]; then
+          echo "MESSAGE<<EOF" >> $GITHUB_OUTPUT
+          cat alert_message.txt >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+        fi
+        
+    - name: Send email alert
+      if: success() && steps.monitor.outputs.alert_needed == 'true'
+      uses: dawidd6/action-send-mail@v3
+      with:
+        server_address: smtp.gmail.com
+        server_port: 465
+        username: ${{ secrets.EMAIL_USERNAME }}
+        password: ${{ secrets.EMAIL_PASSWORD }}
+        subject: "🎫 Singapore GP Ticket Alert - ${{ steps.monitor.outputs.ticket_count }} tickets found!"
+        to: ${{ secrets.EMAIL_TO }}
+        from: Singapore GP Monitor <${{ secrets.EMAIL_USERNAME }}>
+        body: |
+          ${{ steps.read_message.outputs.MESSAGE }}
+          
+          ---
+          This alert was generated automatically at ${{ github.run_id }}
+          Repository: ${{ github.repository }}
+          Workflow: ${{ github.workflow }}
+        priority: high
+        
+    - name: Create Issue on Alert (Optional)
+      if: success() && steps.monitor.outputs.alert_needed == 'true'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const title = `🎫 Ticket Alert: ${context.payload.inputs?.ticket_count || '${{ steps.monitor.outputs.ticket_count }}'} target tickets found`;
+          const body = `${{ steps.read_message.outputs.MESSAGE }}\n\n---\nGenerated at: ${new Date().toISOString()}\nWorkflow Run: ${context.runId}`;
+          
+          // Check if there's already an open issue
+          const issues = await github.rest.issues.listForRepo({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            state: 'open',
+            labels: 'ticket-alert'
+          });
+          
+          if (issues.data.length === 0) {
+            // Create new issue if none exists
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: title,
+              body: body,
+              labels: ['ticket-alert', 'automated']
+            });
+          } else {
+            // Update existing issue
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issues.data[0].number,
+              body: `**New Alert - ${new Date().toISOString()}**\n\n${body}`
+            });
+          }
+          
+    - name: Log monitoring result
+      if: always()
+      run: |
+        echo "Monitoring completed at $(date)"
+        echo "Alert needed: ${{ steps.monitor.outputs.alert_needed }}"
+        echo "Ticket count: ${{ steps.monitor.outputs.ticket_count }}"
+        
+    - name: Upload alert message as artifact
+      if: success() && steps.monitor.outputs.alert_needed == 'true'
+      uses: actions/upload-artifact@v4
+      with:
+        name: alert-message-${{ github.run_number }}
+        path: alert_message.txt
+        retention-days: 30
