@@ -41,11 +41,10 @@ jobs:
       if: success() && steps.monitor.outputs.alert_needed == 'true'
       run: |
         if [ -f alert_message.txt ]; then
-          {
-            echo "MESSAGE<<EOF"
-            cat alert_message.txt
-            echo "EOF"
-          } >> $GITHUB_OUTPUT
+          delimiter=$(openssl rand -hex 8)
+          echo "MESSAGE<<${delimiter}" >> $GITHUB_OUTPUT
+          cat alert_message.txt >> $GITHUB_OUTPUT
+          echo "${delimiter}" >> $GITHUB_OUTPUT
         fi
         
     - name: Create GitHub Issue Alert
