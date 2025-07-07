@@ -2,6 +2,7 @@
 import requests
 import sys
 import re
+import os
 from bs4 import BeautifulSoup
 
 def fetch_tickets():
@@ -216,9 +217,16 @@ def main():
         # Format message
         message = format_alert_message(target_tickets)
         
-        # Output for GitHub Action
-        print("::set-output name=alert_needed::true")
-        print(f"::set-output name=ticket_count::{len(target_tickets)}")
+        # Output for GitHub Action (new format)
+        github_output = os.environ.get('GITHUB_OUTPUT')
+        if github_output:
+            with open(github_output, 'a') as f:
+                f.write(f"alert_needed=true\n")
+                f.write(f"ticket_count={len(target_tickets)}\n")
+        else:
+            # Fallback for local testing
+            print("alert_needed=true")
+            print(f"ticket_count={len(target_tickets)}")
         
         # Save message to file for email
         with open('alert_message.txt', 'w', encoding='utf-8') as f:
@@ -233,8 +241,15 @@ def main():
         sys.exit(0)
     else:
         print("✅ No target tickets found")
-        print("::set-output name=alert_needed::false")
-        print("::set-output name=ticket_count::0")
+        github_output = os.environ.get('GITHUB_OUTPUT')
+        if github_output:
+            with open(github_output, 'a') as f:
+                f.write(f"alert_needed=false\n")
+                f.write(f"ticket_count=0\n")
+        else:
+            # Fallback for local testing
+            print("alert_needed=false")
+            print("ticket_count=0")
         sys.exit(0)
 
 if __name__ == "__main__":
