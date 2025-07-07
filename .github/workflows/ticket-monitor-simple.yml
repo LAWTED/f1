@@ -1,0 +1,71 @@
+name: Singapore GP Ticket Monitor (Simple)
+
+on:
+  schedule:
+    # Run every 10 minutes
+    - cron: '*/10 * * * *'
+  workflow_dispatch: # Allow manual trigger
+  
+env:
+  PYTHONPATH: ${{ github.workspace }}
+
+jobs:
+  monitor-tickets:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+        cache: 'pip'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        
+    - name: Run ticket monitor
+      id: monitor
+      run: |
+        cd ${{ github.workspace }}
+        python monitor_tickets.py
+      continue-on-error: true
+      
+    - name: Set environment variables for Issue
+      if: success() && steps.monitor.outputs.alert_needed == 'true'
+      run: |
+        echo "TICKET_COUNT=${{ steps.monitor.outputs.ticket_count }}" >> $GITHUB_ENV
+        echo "CURRENT_TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")" >> $GITHUB_ENV
+        echo "ALERT_MESSAGE<<EOF" >> $GITHUB_ENV
+        cat alert_message.txt >> $GITHUB_ENV
+        echo "EOF" >> $GITHUB_ENV
+        
+    - name: Create GitHub Issue Alert
+      if: success() && steps.monitor.outputs.alert_needed == 'true'
+      uses: JasonEtco/create-an-issue@v2
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        filename: .github/ISSUE_TEMPLATE/ticket-alert.md
+        update_existing: true
+        search_existing: open
+        
+    - name: Log monitoring result
+      if: always()
+      run: |
+        echo "Monitoring completed at $(date)"
+        echo "Alert needed: ${{ steps.monitor.outputs.alert_needed }}"
+        echo "Ticket count: ${{ steps.monitor.outputs.ticket_count }}"
+        
+    - name: Upload alert message as artifact
+      if: success() && steps.monitor.outputs.alert_needed == 'true'
+      uses: actions/upload-artifact@v4
+      with:
+        name: alert-message-${{ github.run_number }}
+        path: alert_message.txt
+        retention-days: 30
