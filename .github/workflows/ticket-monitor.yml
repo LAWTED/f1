@@ -41,10 +41,9 @@ jobs:
       if: success() && steps.monitor.outputs.alert_needed == 'true'
       run: |
         if [ -f alert_message.txt ]; then
-          delimiter=$(openssl rand -hex 8)
-          echo "MESSAGE<<${delimiter}" >> $GITHUB_OUTPUT
-          cat alert_message.txt >> $GITHUB_OUTPUT
-          echo "${delimiter}" >> $GITHUB_OUTPUT
+          echo "ALERT_MESSAGE<<EOF" >> $GITHUB_ENV
+          cat alert_message.txt >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
         fi
         
     - name: Create GitHub Issue Alert
@@ -53,7 +52,7 @@ jobs:
       with:
         script: |
           const ticketCount = '${{ steps.monitor.outputs.ticket_count }}';
-          const message = `${{ steps.read_message.outputs.MESSAGE }}`;
+          const message = `${{ env.ALERT_MESSAGE }}`;
           const runUrl = `${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}`;
           
           const title = `🎫 Ticket Alert: ${ticketCount} target tickets found!`;
@@ -137,7 +136,7 @@ jobs:
         to: ${{ secrets.EMAIL_TO }}
         from: Singapore GP Monitor <${{ secrets.EMAIL_USERNAME }}>
         body: |
-          ${{ steps.read_message.outputs.MESSAGE }}
+          ${{ env.ALERT_MESSAGE }}
           
           🎫 Buy tickets: https://singaporegp.sg/en/tickets/general-tickets/grandstands/
           📊 View details: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}

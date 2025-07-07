@@ -35,22 +35,26 @@ if github_output:
 ### 3. 修复多行字符串 EOF 分隔符错误
 **问题**: GitHub Actions 报错 "Invalid value. Matching delimiter not found 'EOF'"
 
-**修复**: 修正了 workflow 文件中的多行字符串语法：
+**根本原因**: GITHUB_OUTPUT 对多行字符串的处理存在限制，即使使用随机分隔符也会出现问题
+
+**最终修复**: 改用 GITHUB_ENV 环境变量来处理多行内容：
 ```yaml
-# 修复前
+# 修复前 (GITHUB_OUTPUT 方式)
 run: |
   echo "MESSAGE<<EOF" >> $GITHUB_OUTPUT
   cat alert_message.txt >> $GITHUB_OUTPUT
   echo "EOF" >> $GITHUB_OUTPUT
 
-# 修复后
+# 修复后 (GITHUB_ENV 方式)
 run: |
-  {
-    echo "MESSAGE<<EOF"
-    cat alert_message.txt
-    echo "EOF"
-  } >> $GITHUB_OUTPUT
+  echo "ALERT_MESSAGE<<EOF" >> $GITHUB_ENV
+  cat alert_message.txt >> $GITHUB_ENV
+  echo "EOF" >> $GITHUB_ENV
 ```
+
+**相应更新**: 
+- GitHub Script 中使用 `${{ env.ALERT_MESSAGE }}` 而不是 `${{ steps.read_message.outputs.MESSAGE }}`
+- Email 步骤中也使用环境变量方式
 
 ## 🔧 测试状态
 
@@ -58,7 +62,8 @@ run: |
 - ✅ 依赖安装正常
 - ✅ 监控脚本运行正常
 - ✅ 输出格式兼容新旧环境
-- ✅ EOF 分隔符错误已修复
+- ✅ EOF 分隔符错误已修复（使用环境变量方式）
+- ✅ YAML 语法验证通过
 - ✅ 发现目标票务：Premier Walkabout[FRI] $188
 
 ## 🚀 部署就绪
@@ -67,7 +72,7 @@ run: |
 
 ```bash
 git add .
-git commit -m "Fix GitHub Action EOF delimiter and complete setup"
+git commit -m "Fix GitHub Action multiline string handling with environment variables"
 git push origin main
 ```
 
