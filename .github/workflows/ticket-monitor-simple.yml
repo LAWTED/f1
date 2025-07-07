@@ -55,25 +55,21 @@ jobs:
           }
           
           const title = `🎫 Ticket Alert: ${ticketCount} target tickets found!`;
-          const body = `${alertMessage}
-
-## 🚀 Quick Actions
-- [🎫 Buy Tickets](https://singaporegp.sg/en/tickets/general-tickets/grandstands/)
-- [📊 View Run Details](${runUrl})
-- [⚙️ Monitor Settings](https://github.com/${{ github.repository }}/blob/main/MONITOR_SETUP.md)
-
-## 📱 Mobile Notification
-If you have the GitHub mobile app installed, you should receive a push notification for this issue.
-
----
-**Monitoring Details:**
-- 🕒 Generated at: ${new Date().toISOString()}
-- 🔄 Workflow: ${{ github.workflow }}
-- 📋 Run ID: ${{ github.run_id }}
-- 🏷️ Repository: ${{ github.repository }}
-
-> This issue was created automatically when target tickets were detected.
-> Close this issue when you no longer need alerts for these tickets.`;
+          const body = alertMessage + '\n\n' +
+            '## 🚀 Quick Actions\n' +
+            '- [🎫 Buy Tickets](https://singaporegp.sg/en/tickets/general-tickets/grandstands/)\n' +
+            `- [📊 View Run Details](${runUrl})\n` +
+            '- [⚙️ Monitor Settings](https://github.com/${{ github.repository }}/blob/main/MONITOR_SETUP.md)\n\n' +
+            '## 📱 Mobile Notification\n' +
+            'If you have the GitHub mobile app installed, you should receive a push notification for this issue.\n\n' +
+            '---\n' +
+            '**Monitoring Details:**\n' +
+            `- 🕒 Generated at: ${new Date().toISOString()}\n` +
+            '- 🔄 Workflow: ${{ github.workflow }}\n' +
+            '- 📋 Run ID: ${{ github.run_id }}\n' +
+            '- 🏷️ Repository: ${{ github.repository }}\n\n' +
+            '> This issue was created automatically when target tickets were detected.\n' +
+            '> Close this issue when you no longer need alerts for these tickets.';
           
           // Check if there's already an open issue for current tickets
           const issues = await github.rest.issues.listForRepo({
@@ -102,14 +98,7 @@ If you have the GitHub mobile app installed, you should receive a push notificat
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: existingIssue.number,
-              body: `## 🆕 New Alert - ${new Date().toISOString()}
-              
-${alertMessage}
-
-[🎫 Buy Now](https://singaporegp.sg/en/tickets/general-tickets/grandstands/) • [📊 Run Details](${runUrl})
-
----
-Total alerts for this issue: ${existingIssue.comments + 1}`
+              body: `## 🆕 New Alert - ${new Date().toISOString()}\n\n${alertMessage}\n\n[🎫 Buy Now](https://singaporegp.sg/en/tickets/general-tickets/grandstands/) • [📊 Run Details](${runUrl})\n\n---\nTotal alerts for this issue: ${existingIssue.comments + 1}`
             });
             
             // Update issue title to reflect new count
