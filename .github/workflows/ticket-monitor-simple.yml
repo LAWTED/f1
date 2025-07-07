@@ -36,24 +36,92 @@ jobs:
         python monitor_tickets.py
       continue-on-error: true
       
-    - name: Set environment variables for Issue
-      if: success() && steps.monitor.outputs.alert_needed == 'true'
-      run: |
-        echo "TICKET_COUNT=${{ steps.monitor.outputs.ticket_count }}" >> $GITHUB_ENV
-        echo "CURRENT_TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")" >> $GITHUB_ENV
-        echo "ALERT_MESSAGE<<EOF" >> $GITHUB_ENV
-        cat alert_message.txt >> $GITHUB_ENV
-        echo "EOF" >> $GITHUB_ENV
-        
     - name: Create GitHub Issue Alert
       if: success() && steps.monitor.outputs.alert_needed == 'true'
-      uses: JasonEtco/create-an-issue@v2
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      uses: actions/github-script@v7
       with:
-        filename: .github/ISSUE_TEMPLATE/ticket-alert.md
-        update_existing: true
-        search_existing: open
+        script: |
+          const fs = require('fs');
+          const ticketCount = '${{ steps.monitor.outputs.ticket_count }}';
+          const runUrl = `${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}`;
+          
+          // Read alert message directly from file
+          let alertMessage = '';
+          try {
+            alertMessage = fs.readFileSync('alert_message.txt', 'utf8');
+          } catch (error) {
+            console.log('Could not read alert_message.txt:', error);
+            alertMessage = 'Alert message not available';
+          }
+          
+          const title = `🎫 Ticket Alert: ${ticketCount} target tickets found!`;
+          const body = `${alertMessage}
+
+## 🚀 Quick Actions
+- [🎫 Buy Tickets](https://singaporegp.sg/en/tickets/general-tickets/grandstands/)
+- [📊 View Run Details](${runUrl})
+- [⚙️ Monitor Settings](https://github.com/${{ github.repository }}/blob/main/MONITOR_SETUP.md)
+
+## 📱 Mobile Notification
+If you have the GitHub mobile app installed, you should receive a push notification for this issue.
+
+---
+**Monitoring Details:**
+- 🕒 Generated at: ${new Date().toISOString()}
+- 🔄 Workflow: ${{ github.workflow }}
+- 📋 Run ID: ${{ github.run_id }}
+- 🏷️ Repository: ${{ github.repository }}
+
+> This issue was created automatically when target tickets were detected.
+> Close this issue when you no longer need alerts for these tickets.`;
+          
+          // Check if there's already an open issue for current tickets
+          const issues = await github.rest.issues.listForRepo({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            state: 'open',
+            labels: 'ticket-alert'
+          });
+          
+          // If no open issue exists, create a new one
+          if (issues.data.length === 0) {
+            const newIssue = await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: title,
+              body: body,
+              labels: ['ticket-alert', 'automated', 'high-priority'],
+              assignees: ['${{ github.repository_owner }}']
+            });
+            
+            console.log(`Created new issue #${newIssue.data.number}`);
+          } else {
+            // Update existing issue with new alert
+            const existingIssue = issues.data[0];
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: existingIssue.number,
+              body: `## 🆕 New Alert - ${new Date().toISOString()}
+              
+${alertMessage}
+
+[🎫 Buy Now](https://singaporegp.sg/en/tickets/general-tickets/grandstands/) • [📊 Run Details](${runUrl})
+
+---
+Total alerts for this issue: ${existingIssue.comments + 1}`
+            });
+            
+            // Update issue title to reflect new count
+            await github.rest.issues.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: existingIssue.number,
+              title: title
+            });
+            
+            console.log(`Updated existing issue #${existingIssue.number}`);
+          }
         
     - name: Log monitoring result
       if: always()
