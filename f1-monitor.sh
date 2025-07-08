@@ -43,7 +43,6 @@ echo "======================================"
 echo "🔍 Monitoring for:"
 echo "   🔥 Sunday grandstand tickets"
 echo "   🔥 3-day tickets ≤ \$1500"  
-echo "   🟡 Friday premier walkabout"
 echo "   🟡 Grandstand tickets ≤ \$300"
 echo ""
 

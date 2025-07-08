@@ -150,15 +150,7 @@ def check_target_tickets(tickets):
                 'priority': 'HIGH'
             })
         
-        # Condition 3: 周五 premier walkabout
-        elif 'friday' in days and 'premier walkabout' in name:
-            target_tickets.append({
-                'ticket': ticket,
-                'reason': 'Friday Premier Walkabout available',
-                'priority': 'MEDIUM'
-            })
-        
-        # Condition 4: $300以下的 grandstand
+        # Condition 3: $300以下的 grandstand
         elif 'grandstand' in category and price > 0 and price <= 300:
             target_tickets.append({
                 'ticket': ticket,
